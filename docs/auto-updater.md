@@ -1,9 +1,6 @@
 # 自动更新机制
-
 ## 概述
-
-Claude Code 拥有一套复杂的多策略自动更新系统，支持三种安装方式、后台静默更新、手动 CLI 命令、服务端版本门控以及更新日志展示。系统设计目标是在最小用户干预下保持 CLI 最新，同时提供回滚和手动控制的兜底手段。
-
+Claude Code 拥有一套复杂的多策略自动更新系统，支持三种安装方式、后台静默更新、手动 CLI 命令、服务端版本门控以及更新日志展示。系统设计目标是在最小用户干预下保持 CLI 最新，同时提供回滚和手动控制的兜底手段。UPDATED By Flyer at 00:13
 ---
 
 ## 安装类型与更新策略
@@ -28,30 +25,25 @@ Claude Code 拥有一套复杂的多策略自动更新系统，支持三种安�
 
 ---
 
+
 ## 后台自动更新循环
-
 三个更新组件共享相同的轮询模式：
-
 ```typescript
 useInterval(checkForUpdates, 30 * 60 * 1000); // 每 30 分钟
 ```
-
 组件挂载时（即启动时）也会执行一次检查。
 
+UPDATED By Flyer at 00:14
 ### 前置检查门控
-
 任何更新尝试之前，系统会依次检查：
-
 1. **自动更新是否被禁用？** — `getAutoUpdaterDisabledReason()`（`src/utils/config.ts:1737`）
-   - `NODE_ENV === 'development'`
-   - 设置了 `DISABLE_AUTOUPDATER` 环境变量
-   - 仅限必要流量模式
-   - `config.autoUpdates === false`（native 安装的保护模式除外）
+  - `NODE_ENV === 'development'`
+  - 设置了 `DISABLE_AUTOUPDATER` 环境变量
+  - 仅限必要流量模式
+  - `config.autoUpdates === false`（native 安装的保护模式除外）
 2. **最大版本上限？** — `getMaxVersion()`（`src/utils/autoUpdater.ts:108`）— 服务端熔断开关，防止更新到已知有问题的版本
 3. **是否跳过该版本？** — `shouldSkipVersion()`（`src/utils/autoUpdater.ts:145`）— 尊重用户的 `minimumVersion` 设置，防止切换到 stable 频道时发生意外的版本降级
-
 ### Native 自动更新器（`src/components/NativeAutoUpdater.tsx`）
-
 1. 调用 `src/utils/nativeInstaller/installer.ts` 中的 `installLatest()`
 2. 通过 `src/utils/nativeInstaller/download.ts` 下载二进制文件（GCS 或 Artifactory）
 3. 验证 SHA256 校验和（3 次重试，60 秒卡顿检测）
@@ -59,22 +51,16 @@ useInterval(checkForUpdates, 30 * 60 * 1000); // 每 30 分钟
 5. 更新符号链接（`~/.local/bin/claude` → 新版本二进制文件）
 6. 保留最近 2 个版本，清理旧版本
 7. 将错误分类上报分析（超时、校验和、权限、磁盘空间不足、npm、网络）
-
 ### JS/npm 自动更新器（`src/components/AutoUpdater.tsx`）
-
 1. 调用 `getLatestVersion()` 获取当前 npm dist-tag
 2. 通过 semver `gte()` 比较版本
 3. 根据安装类型路由到本地或全局安装
 4. 使用文件锁（`acquireLock()` / `releaseLock()`）防止并发更新
-
 ### 包管理器通知器（`src/components/PackageManagerAutoUpdater.tsx`）
-
 每 30 分钟通过 GCS 存储桶（非 npm）检查更新。**不会自动安装** — 仅显示对应操作系统的升级命令：
-
 - macOS: `brew upgrade claude-code`
 - Windows: `winget upgrade Anthropic.ClaudeCode`
 - Alpine: `apk upgrade claude-code`
-
 ---
 
 ## 启动版本门控
@@ -93,35 +79,27 @@ void assertMinVersion();
 
 ---
 
+
 ## 手动 CLI 命令
-
 ### `claude update` / `claude upgrade`
-
 **文件**: `src/cli/update.ts`
 
 完整流程：
 1. 运行 `getDoctorDiagnostic()` 检查系统健康状态
 2. 检查是否存在多个安装及配置不一致
 3. 根据安装类型路由：
-   - `development` → 报错（"开发版本不支持自动更新"）
-   - `package-manager` → 打印对应操作系统的更新命令
-   - `native` → 使用原生安装器的 `updateLatest()`
-   - `npm-local` → 在 `~/.claude/local/` 执行 `npm install`
-   - `npm-global` → 执行 `npm install -g`（含权限检查）
+  - `development` → 报错（"开发版本不支持自动更新"）
+  - `package-manager` → 打印对应操作系统的更新命令
+  - `native` → 使用原生安装器的 `updateLatest()`
+  - `npm-local` → 在 `~/.claude/local/` 执行 `npm install`
+  - `npm-global` → 执行 `npm install -g`（含权限检查）
 4. 报告当前版本、最新版本、成功/失败状态
-
 ### `claude rollback [target]`（仅限内部）
-
 回滚到之前的版本。支持 `--list`、`--dry-run`、`--safe` 标志。
-
 ### `claude install [target]`
-
 安装或重新安装原生构建版本。接受可选的版本目标参数。
-
 ### `claude doctor`
-
 检查自动更新器的健康状态，报告状态、权限和配置信息。
-
 ---
 
 ## 原生安装器架构
@@ -163,17 +141,15 @@ Windows 系统使用文件复制而非符号链接。
 
 ---
 
-## 文件锁机制
 
+## 文件锁机制
 **文件**: `src/utils/autoUpdater.ts:176-268`
 
 防止并发更新进程破坏安装：
-
 - 锁文件：`~/.claude/update.lock`（或等效路径）
 - 5 分钟超时 — 超过 5 分钟的锁被视为过期，强制获取
 - 进程将其 PID 写入锁文件
 - `acquireLock()` 和 `releaseLock()` 同时被 JS/npm 和原生安装器使用
-
 ---
 
 ## 配置
@@ -204,12 +180,11 @@ Windows 系统使用文件复制而非符号链接。
 
 ---
 
-## 更新通知去重
 
+## 更新通知去重
 **文件**: `src/hooks/useUpdateNotification.ts`
 
 React hook `useUpdateNotification(updatedVersion)` — 确保每次 semver 变更（major.minor.patch）只显示一次"重启以更新"消息，避免同一版本的重复通知。
-
 ---
 
 ## 更新日志
@@ -224,14 +199,12 @@ React hook `useUpdateNotification(updatedVersion)` — 确保每次 semver 变�
 
 ---
 
+
 ## 版本比较
-
 **文件**: `src/utils/semver.ts`
-
 - 提供 `gt()`、`gte()`、`lt()`、`lte()`、`satisfies()`、`order()`
 - 在 Bun 环境下使用 `Bun.semver.order()`（快 20 倍）
 - 在 Node.js 环境下回退到 npm `semver` 包
-
 ---
 
 ## 分析事件
@@ -253,31 +226,30 @@ React hook `useUpdateNotification(updatedVersion)` — 确保每次 semver 变�
 
 ---
 
+
 ## 关键文件索引
 
-| 文件 | 职责 |
-|---|---|
-| `src/utils/autoUpdater.ts` | 核心逻辑：版本检查、npm 安装、文件锁、最低/最高版本门控 |
-| `src/cli/update.ts` | `claude update` 命令处理 |
-| `src/utils/nativeInstaller/installer.ts` | 原生二进制安装器：下载、版本管理、符号链接、清理 |
-| `src/utils/nativeInstaller/download.ts` | 从 GCS/Artifactory 下载二进制文件并校验 |
-| `src/utils/localInstaller.ts` | 本地安装器（`~/.claude/local/`）基于 npm |
-| `src/components/AutoUpdaterWrapper.tsx` | 基于安装类型的策略路由 |
-| `src/components/AutoUpdater.tsx` | JS/npm 后台自动更新器（30 分钟间隔） |
-| `src/components/NativeAutoUpdater.tsx` | 原生二进制后台自动更新器（30 分钟间隔） |
-| `src/components/PackageManagerAutoUpdater.tsx` | 包管理器通知（30 分钟，仅展示） |
-| `src/hooks/useUpdateNotification.ts` | 按 semver 去重更新通知 |
-| `src/utils/releaseNotes.ts` | Changelog 获取、缓存与展示 |
-| `src/utils/semver.ts` | Semver 版本比较（Bun 原生 + npm 回退） |
-| `src/utils/doctorDiagnostic.ts` | 安装类型检测与健康诊断 |
-| `src/utils/config.ts:1737` | `getAutoUpdaterDisabledReason()` — 禁用检查逻辑 |
-| `src/migrations/migrateAutoUpdatesToSettings.ts` | 旧版配置迁移 |
-| `src/screens/Doctor.tsx` | Doctor 命令 UI，展示自动更新状态 |
+| 文件                                               | 职责                                        |
+| ------------------------------------------------ | ----------------------------------------- |
+| `src/utils/autoUpdater.ts`                       | 核心逻辑：版本检查、npm 安装、文件锁、最低/最高版本门控            |
+| `src/cli/update.ts`                              | `claude update` 命令处理                      |
+| `src/utils/nativeInstaller/installer.ts`         | 原生二进制安装器：下载、版本管理、符号链接、清理                  |
+| `src/utils/nativeInstaller/download.ts`          | 从 GCS/Artifactory 下载二进制文件并校验              |
+| `src/utils/localInstaller.ts`                    | 本地安装器（`~/.claude/local/`）基于 npm           |
+| `src/components/AutoUpdaterWrapper.tsx`          | 基于安装类型的策略路由                               |
+| `src/components/AutoUpdater.tsx`                 | JS/npm 后台自动更新器（30 分钟间隔）                   |
+| `src/components/NativeAutoUpdater.tsx`           | 原生二进制后台自动更新器（30 分钟间隔）                     |
+| `src/components/PackageManagerAutoUpdater.tsx`   | 包管理器通知（30 分钟，仅展示）                         |
+| `src/hooks/useUpdateNotification.ts`             | 按 semver 去重更新通知                           |
+| `src/utils/releaseNotes.ts`                      | Changelog 获取、缓存与展示                        |
+| `src/utils/semver.ts`                            | Semver 版本比较（Bun 原生 + npm 回退）              |
+| `src/utils/doctorDiagnostic.ts`                  | 安装类型检测与健康诊断                               |
+| `src/utils/config.ts:1737`                       | `getAutoUpdaterDisabledReason()` — 禁用检查逻辑 |
+| `src/migrations/migrateAutoUpdatesToSettings.ts` | 旧版配置迁移                                    |
+| `src/screens/Doctor.tsx`                         | Doctor 命令 UI，展示自动更新状态                     |
 
 ---
-
 ## 流程图
-
 ```
 启动阶段
   ├── assertMinVersion() → 版本过低时硬性拦截，拒绝启动
